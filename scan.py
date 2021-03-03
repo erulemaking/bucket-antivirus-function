@@ -23,6 +23,7 @@ import boto3
 
 import clamav
 import metrics
+from common import AV_SCAN_PATH
 from common import AV_DEFINITION_S3_BUCKET
 from common import AV_DEFINITION_S3_PREFIX
 from common import AV_DELETE_INFECTED_FILES
@@ -219,7 +220,7 @@ def lambda_handler(event, context):
         start_scan_time = get_timestamp()
         sns_start_scan(sns_client, s3_object, AV_SCAN_START_SNS_ARN, start_scan_time)
 
-    file_path = get_local_path(s3_object, "/mnt/efs")
+    file_path = get_local_path(s3_object, AV_SCAN_PATH)
     create_dir(os.path.dirname(file_path))
     s3_object.download_file(file_path)
 
