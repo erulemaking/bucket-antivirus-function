@@ -278,7 +278,6 @@ the table below for reference.
 | AV_DELETE_INFECTED_FILES | Controls whether infected files should be automatically deleted | False | No |
 | EVENT_SOURCE | The source of antivirus scan event "S3" or "SNS" (optional) | S3 | No |
 
-If AV_SCAN_PATH is not specified, default internal lambda storage will be used.
 
 ## S3 Bucket Policy Examples
 
