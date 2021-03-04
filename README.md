@@ -256,7 +256,7 @@ the table below for reference.
 
 | Variable | Description | Default | Required |
 | --- | --- | --- | --- |
-| AV_SCAN_PATH | Path where the file to be scanned will be temporarily stored |  | No |
+| AV_SCAN_PATH | Path where the file to be scanned will be temporarily stored | /tmp | No |
 | AV_DEFINITION_S3_BUCKET | Bucket containing antivirus definition files |  | Yes |
 | AV_DEFINITION_S3_PREFIX | Prefix for antivirus definition files | clamav_defs | No |
 | AV_DEFINITION_PATH | Path containing files at runtime | /tmp/clamav_defs | No |
