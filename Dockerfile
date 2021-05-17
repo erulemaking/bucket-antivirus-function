@@ -19,6 +19,7 @@ RUN yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.n
 RUN pip3 install -r requirements.txt
 RUN rm -rf /root/.cache/pip
 
+# See refrence here for build direction: https://github.com/upsidetravel/bucket-antivirus-function/issues/125
 # Download libraries we need to run in lambda
 WORKDIR /tmp
 RUN yumdownloader -x \*i686 --archlist=x86_64 clamav clamav-lib clamav-update json-c pcre2 libprelude gnutls libtasn1 lib64nettle nettle
