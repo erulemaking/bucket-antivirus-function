@@ -19,14 +19,20 @@ RUN yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.n
 RUN pip3 install -r requirements.txt
 RUN rm -rf /root/.cache/pip
 
+# See refrence here for build direction: https://github.com/upsidetravel/bucket-antivirus-function/issues/125
 # Download libraries we need to run in lambda
 WORKDIR /tmp
-RUN yumdownloader -x \*i686 --archlist=x86_64 clamav clamav-lib clamav-update json-c pcre2
+RUN yumdownloader -x \*i686 --archlist=x86_64 clamav clamav-lib clamav-update json-c pcre2 libprelude gnutls libtasn1 lib64nettle nettle
 RUN rpm2cpio clamav-0*.rpm | cpio -idmv
 RUN rpm2cpio clamav-lib*.rpm | cpio -idmv
 RUN rpm2cpio clamav-update*.rpm | cpio -idmv
 RUN rpm2cpio json-c*.rpm | cpio -idmv
 RUN rpm2cpio pcre*.rpm | cpio -idmv
+RUN rpm2cpio gnutls* | cpio -idmv
+RUN rpm2cpio nettle* | cpio -idmv
+RUN rpm2cpio lib* | cpio -idmv
+RUN rpm2cpio *.rpm | cpio -idmv
+RUN rpm2cpio libtasn1* | cpio -idmv
 
 # Copy over the binaries and libraries
 RUN cp /tmp/usr/bin/clamscan /tmp/usr/bin/freshclam /tmp/usr/lib64/* /opt/app/bin/
