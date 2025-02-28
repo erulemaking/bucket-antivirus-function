@@ -23,8 +23,7 @@ import boto3
 
 import clamav
 import metrics
-from common import AV_SCAN_PATH
-from common import AV_DEFINITION_S3_BUCKET
+from common import AV_DEFINITION_S3_BUCKET, AV_SCAN_MAX_FILE_SIZE_BYTES, AV_SIGNATURE_OK
 from common import AV_DEFINITION_S3_PREFIX
 from common import AV_DELETE_INFECTED_FILES
 from common import AV_PROCESS_ORIGINAL_VERSION_ONLY
@@ -33,6 +32,7 @@ from common import AV_SCAN_START_SNS_ARN
 from common import AV_SIGNATURE_METADATA
 from common import AV_STATUS_CLEAN
 from common import AV_STATUS_INFECTED
+from common import AV_STATUS_SKIPPED
 from common import AV_STATUS_METADATA
 from common import AV_STATUS_SNS_ARN
 from common import AV_STATUS_SNS_PUBLISH_CLEAN
@@ -43,10 +43,16 @@ from common import get_timestamp
 
 
 def event_object(event, event_source="s3"):
+    print(json.dumps(event))
 
     # SNS events are slightly different
     if event_source.upper() == "SNS":
         event = json.loads(event["Records"][0]["Sns"]["Message"])
+
+    #We can ignore tests sent by S3 to verify that it has permission to send notifications
+    if event.get('Event') == 's3:TestEvent':
+        print("Received s3 test event. Nothing to scan")
+        return None
 
     # Break down the record
     records = event["Records"]
@@ -72,6 +78,8 @@ def event_object(event, event_source="s3"):
     # Ensure both bucket and key exist
     if (not bucket_name) or (not key_name):
         raise Exception("Unable to retrieve object from event.\n{}".format(event))
+
+    print("Scanning on event=" + record['eventName'] +" | key=" + key_name +" | bucket=" + bucket_name)
 
     # Create and return the object
     s3 = boto3.resource("s3")
@@ -177,6 +185,9 @@ def sns_scan_results(
         AV_STATUS_SNS_PUBLISH_INFECTED
     ):
         return
+    if scan_result == AV_STATUS_SKIPPED:
+        return
+
     message = {
         "bucket": s3_object.bucket_name,
         "key": s3_object.key,
@@ -185,7 +196,10 @@ def sns_scan_results(
         AV_STATUS_METADATA: scan_result,
         AV_TIMESTAMP_METADATA: get_timestamp(),
     }
+
+    print("publishing " + str(message) + " to " + sns_arn)
     sns_client.publish(
+        Subject=f"{scan_result} File found in S3 Bucket!",
         TargetArn=sns_arn,
         Message=json.dumps({"default": json.dumps(message)}),
         MessageStructure="json",
@@ -212,6 +226,14 @@ def lambda_handler(event, context):
     print("Script starting at %s\n" % (start_time))
     s3_object = event_object(event, event_source=EVENT_SOURCE)
 
+    #If not a scannable s3 object in event or file size too large, don't scan
+    if s3_object is None or s3_object.content_length > AV_SCAN_MAX_FILE_SIZE_BYTES:
+        print("Skipping event")
+        if s3_object:
+            # tag that S3 object was skipped
+            set_av_tags(s3_client, s3_object, AV_STATUS_SKIPPED, AV_SIGNATURE_OK, start_time)
+        return
+
     if str_to_bool(AV_PROCESS_ORIGINAL_VERSION_ONLY):
         verify_s3_object_version(s3, s3_object)
 
@@ -220,7 +242,7 @@ def lambda_handler(event, context):
         start_scan_time = get_timestamp()
         sns_start_scan(sns_client, s3_object, AV_SCAN_START_SNS_ARN, start_scan_time)
 
-    file_path = get_local_path(s3_object, AV_SCAN_PATH)
+    file_path = get_local_path(s3_object, "/tmp")
     create_dir(os.path.dirname(file_path))
     s3_object.download_file(file_path)
 
